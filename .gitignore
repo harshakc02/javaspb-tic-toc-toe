@@ -1,0 +1,36 @@
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+
+# IDEs
+*.iml
+.idea/
+*.iws
+*.ipr
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and binaries
+*.log
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+
+# Build output
+out/
+bin/
+
+# Others
+*.keystore

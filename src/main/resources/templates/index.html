@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Tic Tac Toe</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        :root{
+            --bg-1:#0f172a;
+            --bg-2:#0b1220;
+            --card:#0f172a88;
+            --accent:#06b6d4;
+            --x-color:#ef4444;
+            --o-color:#60a5fa;
+            --muted:#94a3b8;
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%;margin:0}
+        body{
+            font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+            display:flex;align-items:center;justify-content:center;
+            background:linear-gradient(135deg,var(--bg-1),var(--bg-2));
+            color:#e6eef8;
+            padding:24px;
+        }
+        .container{width:min(520px,96vw);background:rgba(255,255,255,0.03);padding:20px;border-radius:12px;backdrop-filter: blur(6px);box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+        header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+        h1{font-size:20px;margin:0}
+        .status{font-size:14px;color:var(--muted)}
+        .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;background:transparent}
+        .cell{
+            aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:700;color:#0b1220;
+            background:linear-gradient(180deg,#ffffff,#f3f4f6);border-radius:10px;cursor:pointer;user-select:none;
+            transform-style:preserve-3d;transition:transform .22s cubic-bezier(.2,.9,.3,1),box-shadow .18s;
+            box-shadow: 0 6px 18px rgba(2,6,23,0.2);
+        }
+        .cell:hover{transform:translateY(-6px)}
+        .cell.played{animation:pop .28s ease;}
+        .cell.x{color:var(--x-color)}
+        .cell.o{color:var(--o-color)}
+        @keyframes pop{0%{transform:scale(.92)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+        .controls{display:flex;gap:8px;align-items:center;margin-top:14px}
+        button{background:transparent;border:1px solid rgba(255,255,255,0.08);color:inherit;padding:8px 12px;border-radius:8px;cursor:pointer}
+        button.primary{background:linear-gradient(90deg,var(--accent),#7c3aed);border:none;color:#071022}
+        .win{outline:4px solid rgba(255,255,255,0.06);box-shadow:0 0 30px rgba(99,102,241,0.16)}
+        .highlight{box-shadow:0 0 30px rgba(250,204,21,0.18);border-radius:10px;}
+        .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(2,6,23,0.65),rgba(2,6,23,0.82));}
+        .overlay.show{display:flex}
+        .dialog{background:#071024;padding:20px;border-radius:12px;min-width:260px;text-align:center}
+        .dialog h2{margin:0 0 8px}
+        .dialog p{margin:0 0 14px;color:var(--muted)}
+        @media (max-width:420px){ .cell{font-size:36px} }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1 th:text="${message}">Welcome to Tic Tac Toe</h1>
+        <div class="status" id="status">Turn: <strong id="turn">X</strong></div>
+    </header>
+
+    <div class="board" id="board">
+        <div class="cell" data-pos="0" aria-label="cell 0"></div>
+        <div class="cell" data-pos="1" aria-label="cell 1"></div>
+        <div class="cell" data-pos="2" aria-label="cell 2"></div>
+        <div class="cell" data-pos="3" aria-label="cell 3"></div>
+        <div class="cell" data-pos="4" aria-label="cell 4"></div>
+        <div class="cell" data-pos="5" aria-label="cell 5"></div>
+        <div class="cell" data-pos="6" aria-label="cell 6"></div>
+        <div class="cell" data-pos="7" aria-label="cell 7"></div>
+        <div class="cell" data-pos="8" aria-label="cell 8"></div>
+    </div>
+
+    <div class="controls">
+        <button id="reset">Reset</button>
+        <button class="primary" id="newGame">New Game</button>
+        <div style="flex:1"></div>
+        <div style="font-size:13px;color:var(--muted)">3x3 • Local</div>
+    </div>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-hidden="true">
+    <div class="dialog" id="dialog">
+        <h2 id="dialogTitle">Result</h2>
+        <p id="dialogMsg">Player X wins</p>
+        <button id="dialogReset">Play again</button>
+    </div>
+</div>
+
+<script>
+    (function(){
+        const cells = Array.from(document.querySelectorAll('.cell'));
+        const turnEl = document.getElementById('turn');
+        const statusEl = document.getElementById('status');
+        const overlay = document.getElementById('overlay');
+        const dialogTitle = document.getElementById('dialogTitle');
+        const dialogMsg = document.getElementById('dialogMsg');
+        const dialogReset = document.getElementById('dialogReset');
+        const resetBtn = document.getElementById('reset');
+        const newGameBtn = document.getElementById('newGame');
+
+        let board = Array(9).fill('');
+        let current = 'X';
+        let finished = false;
+
+        const wins = [
+            [0,1,2],[3,4,5],[6,7,8],
+            [0,3,6],[1,4,7],[2,5,8],
+            [0,4,8],[2,4,6]
+        ];
+
+        function render(){
+            cells.forEach((cell,i)=>{
+                cell.textContent = board[i];
+                cell.classList.toggle('x', board[i]==='X');
+                cell.classList.toggle('o', board[i]==='O');
+                if(board[i]) cell.classList.add('played'); else cell.classList.remove('played');
+            });
+            turnEl.textContent = current;
+        }
+
+        function checkWinner(){
+            for(const line of wins){
+                const [a,b,c] = line;
+                if(board[a] && board[a]===board[b] && board[a]===board[c]){
+                    return {winner: board[a], line};
+                }
+            }
+            if(board.every(Boolean)) return {winner: null, draw:true};
+            return null;
+        }
+
+        function endGame(result){
+            finished = true;
+            if(result.draw){
+                dialogTitle.textContent = 'Draw';
+                dialogMsg.textContent = 'No more moves — it\'s a draw.';
+            } else {
+                dialogTitle.textContent = 'Winner';
+                dialogMsg.textContent = `Player ${result.winner} wins!`;
+                // highlight winning cells
+                result.line.forEach(i=>cells[i].classList.add('highlight'));
+            }
+            overlay.classList.add('show');
+            overlay.setAttribute('aria-hidden','false');
+        }
+
+        function handleClick(e){
+            if(finished) return;
+            const pos = Number(e.currentTarget.dataset.pos);
+            if(board[pos]) return;
+            board[pos] = current;
+            render();
+            const res = checkWinner();
+            if(res){
+                endGame(res);
+                return;
+            }
+            current = current === 'X' ? 'O' : 'X';
+            turnEl.textContent = current;
+        }
+
+        function resetGame(){
+            board = Array(9).fill('');
+            current = 'X';
+            finished = false;
+            cells.forEach(c=>c.classList.remove('highlight'));
+            overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden','true');
+            render();
+        }
+
+        cells.forEach(c => c.addEventListener('click', handleClick));
+        resetBtn.addEventListener('click', resetGame);
+        newGameBtn.addEventListener('click', resetGame);
+        dialogReset.addEventListener('click', resetGame);
+
+        // initial render
+        render();
+    })();
+</script>
+</body>
+</html>
